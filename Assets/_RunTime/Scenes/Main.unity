@@ -2378,7 +2378,7 @@ MonoBehaviour:
   playerController: {fileID: 1371181899}
   minimumDistance: 0.1
   maximumTime: 1
-  directionThreshold: 0.9
+  directionThreshold: 0.5
 --- !u!1001 &1391365228
 PrefabInstance:
   m_ObjectHideFlags: 0

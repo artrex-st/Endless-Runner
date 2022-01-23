@@ -4,19 +4,15 @@ public class PlayerController : MonoBehaviour
 {
     private PlayerControls playerControls;
     [SerializeField] private PlayerAudioController playerAudioController; 
-    [SerializeField] private float horizontalSpeed = 15;
-    [SerializeField] private float laneDistanceX = 4;
+    [SerializeField] private float horizontalSpeed = 15, laneDistanceX = 4;
 
     [Header("Jump")]
     [SerializeField] private float jumpDistanceZ = 5;
-    [SerializeField] private float jumpHeightY = 2;
-
-    [SerializeField] private float jumpLerpSpeed = 10;
+    [SerializeField] private float jumpHeightY = 2, jumpLerpSpeed = 10;
 
     [Header("Roll")]
     [SerializeField] private float rollDistanceZ = 5;
-    [SerializeField] private Collider regularCollider;
-    [SerializeField] private Collider rollCollider;
+    [SerializeField] private Collider regularCollider, rollCollider;
 
     //others
     Vector3 initialPosition;
@@ -44,7 +40,9 @@ public class PlayerController : MonoBehaviour
     }
     public void PlayerInputsVector2(Vector2 axis)
     {
-        targetPositionX = Mathf.Clamp(targetPositionX + (axis.x * laneDistanceX), LeftLaneX, RightLaneX);
+        // X
+        targetPositionX = Mathf.Clamp(targetPositionX + (Mathf.RoundToInt(axis.x) * laneDistanceX), LeftLaneX, RightLaneX);
+        // Y
         if (axis.y > 0 && CanJump)
         {
             StartJump();
@@ -74,7 +72,6 @@ public class PlayerController : MonoBehaviour
         {
             StartRoll();
         }
-        Debug.Log($"Swipe Axis Touch:{direction}");
         targetPositionX = Mathf.Clamp(targetPositionX, LeftLaneX, RightLaneX);
     }
 

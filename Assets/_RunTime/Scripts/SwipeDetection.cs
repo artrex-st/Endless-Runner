@@ -8,10 +8,8 @@ public class SwipeDetection : MonoBehaviour
     [SerializeField] private float minimumDistance = 0.2f;
     [SerializeField] private float maximumTime = 1f;
     [SerializeField, Range(0,1)] private float directionThreshold = 0.9f;
-    private Vector2 startPosition;
-    private Vector2 endPosition;
-    private float startTime;
-    private float endTime;
+    private Vector2 startPosition, endPosition;
+    private float startTime, endTime;
     private Vector2 axisDirection;
     public Vector2 AxisDirection => axisDirection;
 
@@ -22,15 +20,15 @@ public class SwipeDetection : MonoBehaviour
     }
     private void OnEnable()
     {
-        inputManager.OnStartTouch += SwipeStart;
-        inputManager.OnEndTouch += SwipeEnd;
-        inputManager.OnSwipeAxis += SwipeAxis;
+        inputManager._OnStartTouch += SwipeStart;
+        inputManager._OnEndTouch += SwipeEnd;
+        inputManager._OnSwipeAxis += SwipeAxis;
     }
     private void OnDisable()
     {
-        inputManager.OnStartTouch -= SwipeStart;
-        inputManager.OnEndTouch -= SwipeEnd;
-        inputManager.OnSwipeAxis -= SwipeAxis;
+        inputManager._OnStartTouch -= SwipeStart;
+        inputManager._OnEndTouch -= SwipeEnd;
+        inputManager._OnSwipeAxis -= SwipeAxis;
     }
     private void SwipeStart(Vector2 position, float time)
     {
