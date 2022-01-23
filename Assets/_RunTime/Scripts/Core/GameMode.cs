@@ -6,8 +6,8 @@ using UnityEngine.SceneManagement;
 public class GameMode : MonoBehaviour
 {
     [SerializeField] private Camera mainCamera;
-    //Player
-    [SerializeField] private PlayerController player;
+
+    [SerializeField] private PlayerController _player;
     [SerializeField] private PlayerAnimationController playerAnimationController;
     [SerializeField] private MusicController musicController;
     [SerializeField] private SaveGame saveGame;
@@ -23,8 +23,6 @@ public class GameMode : MonoBehaviour
     public int Score => Mathf.RoundToInt(score);
     public int DistanceCount => Mathf.RoundToInt(distanceCount);
     public int CherryPicUpCount => cherryPicUpCount;
-    //Player END
-    //Game Mode
     [SerializeField, Range(0,5f)] float timerToStart;
     public float TimerToStart => timerToStart;
     private bool isDead = false;
@@ -36,7 +34,7 @@ public class GameMode : MonoBehaviour
 
     private void Awake()
     {
-        player.enabled = false;
+        _player.enabled = false;
         saveGame.LoadGame();
         GameStateManager.Instance.OnGameStateChanged += OnGameStateChanged;
     }
@@ -53,19 +51,19 @@ public class GameMode : MonoBehaviour
         }
         else
         {
-            if(!player.isActiveAndEnabled)
-                player.enabled = playerAnimationController.EndStartAnimation();
+            if(!_player.isActiveAndEnabled)
+                _player.enabled = playerAnimationController.EndStartAnimation();
             startTime = Time.time;
         }
     }
     private bool CanPlay()
     {
-        return player.isActiveAndEnabled && !isDead;
+        return _player.isActiveAndEnabled && !isDead;
     }
     private void SpeedLevelCalc()
     {
         float _percent = (Time.time - startTime) / timeToMaxSpeed;
-        player.ForwardSpeed = Mathf.Lerp(initialSpeed, maxSpeed, _percent);
+        _player.ForwardSpeed = Mathf.Lerp(initialSpeed, maxSpeed, _percent);
         ScoreCalc(_percent);
     }
     public void OnGameOver()
@@ -82,11 +80,11 @@ public class GameMode : MonoBehaviour
     private void ScoreCalc(float _Multiply)
     {
         float _extraScore = 1 + _Multiply;
-        score += baseScoreMultiplier * player.ForwardSpeed * Time.deltaTime * _extraScore;
+        score += baseScoreMultiplier * _player.ForwardSpeed * Time.deltaTime * _extraScore;
     }
     private void DistanceCalc()
     {
-        distanceCount += player.ForwardSpeed * Time.deltaTime;
+        distanceCount += _player.ForwardSpeed * Time.deltaTime;
     }
     private void OnGameStateChanged(GameStates newGameState)
     {

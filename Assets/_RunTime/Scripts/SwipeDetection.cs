@@ -8,8 +8,6 @@ public class SwipeDetection : MonoBehaviour
     [SerializeField] private float minimumDistance = 0.2f;
     [SerializeField] private float maximumTime = 1f;
     [SerializeField, Range(0,1)] private float directionThreshold = 0.9f;
-    // [SerializeField] private GameObject trail; // TRAIL
-    // private Coroutine trailPosition; // TRAIL
     private Vector2 startPosition;
     private Vector2 endPosition;
     private float startTime;
@@ -38,29 +36,13 @@ public class SwipeDetection : MonoBehaviour
     {
         startPosition = position;
         startTime = time;
-        // TRAIL
-        // trail.SetActive(true);
-        // trail.transform.position = position;
-        // trailPosition = StartCoroutine(TrailPosition());
-        // TRAIL
+
     }
-    // private IEnumerator TrailPosition() // TRAIL
-    // {
-    //     while(true)
-    //     {
-    //         trail.transform.position = inputManager.PrimaryPosition();
-    //         yield return null;
-    //     }
-    // } // TRAIL
     private void SwipeEnd(Vector2 position, float time)
     {
         endPosition = position;
         endTime = time;
         DetectSwipe();
-        // TRAIL
-        // trail.SetActive(false);
-        // StopCoroutine(trailPosition);
-        // TRAIL
     }
     private void DetectSwipe()
     {
