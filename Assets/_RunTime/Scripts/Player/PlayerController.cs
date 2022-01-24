@@ -2,54 +2,40 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    private PlayerControls playerControls;
-    [SerializeField] private PlayerAudioController playerAudioController; 
-    [SerializeField] private float horizontalSpeed = 15, laneDistanceX = 4;
+    public delegate void AnimationSetingBool(string animation, bool isEnabled);
+    public event AnimationSetingBool OnStartedBoolAnimation;
+    public delegate void AnimationSetingTrigger(string animation);
+    public event AnimationSetingTrigger OnStartedTriggerAnimation;
+    [SerializeField] private PlayerAudioController _playerAudioController;
+    [SerializeField] private Collider _regularCollider, _rollCollider;
+    [Header("Player Config")]
+    [SerializeField] private PlayerControlConfig _playerConfig;
 
-    [Header("Jump")]
-    [SerializeField] private float jumpDistanceZ = 5;
-    [SerializeField] private float jumpHeightY = 2, jumpLerpSpeed = 10;
-
-    [Header("Roll")]
-    [SerializeField] private float rollDistanceZ = 5;
-    [SerializeField] private Collider regularCollider, rollCollider;
-
-    //others
-    Vector3 initialPosition;
-    private float targetPositionX;
-    public float ForwardSpeed {set; get;}
+    public float ForwardSpeed {get; set;}
     public bool IsJumping { get; private set; }
-    private float rollStartZ;
     public bool IsRolling { get; private set; }
-    public float JumpDuration => jumpDistanceZ / ForwardSpeed;
-    public float RollDuration => rollDistanceZ / ForwardSpeed;
-    private float jumpStartZ;
-    private float LeftLaneX => initialPosition.x - laneDistanceX;
-    private float RightLaneX => initialPosition.x + laneDistanceX;
-    private bool CanJump => !IsJumping;
-    private bool CanRoll => !IsRolling;
-    // touch
-    void Awake()
-    {
-        initialPosition = transform.position;
-        StopRoll();
-    }
-    void Update()
-    {
-        ProcessMovements();
-    }
+    public float JumpDuration => _playerConfig.jumpDistanceZ / ForwardSpeed;
+    public float RollDuration => _playerConfig.rollDistanceZ / ForwardSpeed;
+    private float _HorizontalSpeed;
+    private Vector3 _initialPosition;
+    private float _targetPositionX, _rollStartZ, _jumpStartZ;
+    private float _LeftLaneX => _initialPosition.x - _playerConfig.laneDistanceX;
+    private float _RightLaneX => _initialPosition.x + _playerConfig.laneDistanceX;
+    private bool _CanJump => !IsJumping && ForwardSpeed > 0;
+    private bool _CanRoll => !IsRolling && ForwardSpeed > 0;
+
     public void PlayerInputsVector2(Vector2 axis)
     {
-        // X
-        targetPositionX = Mathf.Clamp(targetPositionX + (Mathf.RoundToInt(axis.x) * laneDistanceX), LeftLaneX, RightLaneX);
-        // Y
-        if (axis.y > 0 && CanJump)
+        _targetPositionX = Mathf.Clamp(_targetPositionX + (Mathf.RoundToInt(axis.x) * _playerConfig.laneDistanceX), _LeftLaneX, _RightLaneX);
+        
+        if (axis.y > 0 && _CanJump)
         {
-            StartJump();
+            _StartJump();
         }
-        if (axis.y < 0 && CanRoll)
+
+        if (axis.y < 0 && _CanRoll)
         {
-            StartRoll();
+            _StartRoll();
         }
     }
     public void SwipeDirection(Vector2 direction, float directionThreshold)
@@ -57,111 +43,158 @@ public class PlayerController : MonoBehaviour
         // X
         if (Vector2.Dot(Vector2.left, direction) > directionThreshold)
         {
-            targetPositionX -= laneDistanceX;
+            _targetPositionX -= _playerConfig.laneDistanceX;
         }
+        
         if (Vector2.Dot(Vector2.right, direction) > directionThreshold)
         {
-            targetPositionX += laneDistanceX;
+            _targetPositionX += _playerConfig.laneDistanceX;
         }
+        
         // Y
-        if (Vector2.Dot(Vector2.up, direction) > directionThreshold && CanJump)
+        if (Vector2.Dot(Vector2.up, direction) > directionThreshold && _CanJump)
         {
-            StartJump();
+            _StartJump();
         }
-        if (Vector2.Dot(Vector2.down, direction) > directionThreshold && CanRoll)
+        
+        if (Vector2.Dot(Vector2.down, direction) > directionThreshold && _CanRoll)
         {
-            StartRoll();
+            _StartRoll();
         }
-        targetPositionX = Mathf.Clamp(targetPositionX, LeftLaneX, RightLaneX);
+        _targetPositionX = Mathf.Clamp(_targetPositionX, _LeftLaneX, _RightLaneX);
     }
+    public void Die()
+    {
+        OnStartedTriggerAnimation?.Invoke(PlayerAnimationConstants.DieTrigger);
+        _playerAudioController.PlayDieSound();
 
-    private void ProcessMovements()
+        ForwardSpeed = 0;
+        _HorizontalSpeed = 0;
+        _StopRoll();
+        _StopJump();
+    }
+    public float OnAnimationRollModifier()
+    {
+        return RollDuration;
+    }
+    public float OnAnimationJumpModifier()
+    {
+        return JumpDuration;
+    }
+    private void Awake()
+    {
+        _Initialize();
+    }
+    private void OnEnable()
+    {
+        _InitializeOnEnable();
+    }
+    private void Update()
+    {
+        _ProcessMovements();
+    }
+    private void OnDisable()
+    {
+        _InitializeOnDisable();
+    }
+    private void _Initialize()
+    {
+        _initialPosition = transform.position;
+        _HorizontalSpeed = _playerConfig.horizontalSpeed;
+        _StopRoll();
+        _StopJump();
+    }
+    private void _InitializeOnEnable()
+    {
+        RollAnimationState.OnAnimationRollModifier += OnAnimationRollModifier;
+        JumpAnimationState.OnAnimationJumpModifier += OnAnimationJumpModifier;
+    }
+    private void _InitializeOnDisable()
+    {
+        RollAnimationState.OnAnimationRollModifier -= OnAnimationRollModifier;
+        JumpAnimationState.OnAnimationJumpModifier -= OnAnimationJumpModifier;
+    }
+    private void _ProcessMovements()
     {
         Vector3 position = transform.position;
-        position.x = ProcessLaneMovement();
-        ProcessRoll();
-        position.y = ProcessJump();
-        position.z = ProcessForwardMovement();
+        position.x = _ProcessLaneMovement();
+        _ProcessRoll();
+        position.y = _ProcessJump();
+        position.z = _ProcessForwardMovement();
         transform.position = position;
     }
-    private float ProcessLaneMovement()
+    private float _ProcessLaneMovement()
     {
-        return Mathf.Lerp(transform.position.x, targetPositionX, Time.deltaTime * horizontalSpeed);
+        return Mathf.Lerp(transform.position.x, _targetPositionX, Time.deltaTime * _HorizontalSpeed);
     }
-
-    private float ProcessForwardMovement()
+    private float _ProcessForwardMovement()
     {
         return transform.position.z + ForwardSpeed * Time.deltaTime;
     }
-
-    private void StartJump()
+    private void _StartJump()
     {
-        playerAudioController.PlayJumpSound();
         IsJumping = true;
-        jumpStartZ = transform.position.z;
-        StopRoll();
+        OnStartedBoolAnimation?.Invoke(PlayerAnimationConstants.IsJumping,IsJumping);
+        
+        _playerAudioController.PlayJumpSound();
+        _jumpStartZ = transform.position.z;
+        _StopRoll();
     }
-
-    private void StopJump()
+    private void _StopJump()
     {
         IsJumping = false;
+        OnStartedBoolAnimation?.Invoke(PlayerAnimationConstants.IsJumping,IsJumping);
     }
-
-    private float ProcessJump()
+    private float _ProcessJump()
     {
         float deltaY = 0;
+        
         if (IsJumping)
         {
-            float jumpCurrentProgress = transform.position.z - jumpStartZ;
-            float jumpPercent = jumpCurrentProgress / jumpDistanceZ;
+            float jumpCurrentProgress = transform.position.z - _jumpStartZ;
+            float jumpPercent = jumpCurrentProgress / _playerConfig.jumpDistanceZ;
+            
             if (jumpPercent >= 1)
             {
-                StopJump();
+                _StopJump();
             }
             else
             {
-                deltaY = Mathf.Sin(Mathf.PI * jumpPercent) * jumpHeightY;
+                deltaY = Mathf.Sin(Mathf.PI * jumpPercent) * _playerConfig.jumpHeightY;
             }
         }
-        float targetPositionY = initialPosition.y + deltaY;
-        return Mathf.Lerp(transform.position.y, targetPositionY, Time.deltaTime * jumpLerpSpeed);
+        float targetPositionY = _initialPosition.y + deltaY;
+        return Mathf.Lerp(transform.position.y, targetPositionY, Time.deltaTime * _playerConfig.jumpLerpSpeed);
     }
-
-    private void ProcessRoll()
+    private void _ProcessRoll()
     {
         if (IsRolling)
         {
-            float percent = (transform.position.z - rollStartZ) / rollDistanceZ;
+            float percent = (transform.position.z - _rollStartZ) / _playerConfig.rollDistanceZ;
+            
             if (percent >= 1)
             {
-                StopRoll();
+                _StopRoll();
             }
         }
     }
-
-    private void StartRoll()
+    private void _StartRoll()
     {
-        playerAudioController.PlayRollSound();
-        rollStartZ = transform.position.z;
         IsRolling = true;
-        regularCollider.enabled = false;
-        rollCollider.enabled = true;
-        StopJump();
-    }
+        OnStartedBoolAnimation?.Invoke(PlayerAnimationConstants.IsRolling,IsRolling);
 
-    private void StopRoll()
+        _playerAudioController.PlayRollSound();
+        _rollStartZ = transform.position.z;
+        _regularCollider.enabled = false;
+        _rollCollider.enabled = true;
+        _StopJump();
+    }
+    private void _StopRoll()
     {
         IsRolling = false;
-        regularCollider.enabled = true;
-        rollCollider.enabled = false;
-    }
+        OnStartedBoolAnimation?.Invoke(PlayerAnimationConstants.IsRolling,IsRolling);
 
-    public void Die()
-    {
-        ForwardSpeed = 0;
-        horizontalSpeed = 0;
-        playerAudioController.PlayDieSound();
-        StopRoll();
-        StopJump();
+        _regularCollider.enabled = true;
+        _rollCollider.enabled = false;
     }
 }

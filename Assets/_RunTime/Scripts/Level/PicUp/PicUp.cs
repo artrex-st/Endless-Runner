@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PicUp : MonoBehaviour
+public class PicUp : MonoBehaviour, IPicUps
 {
     [SerializeField] private AudioClip picUpSound;
     [SerializeField] private GameObject visual;

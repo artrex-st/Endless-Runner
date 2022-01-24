@@ -3,43 +3,46 @@ using UnityEngine;
 
 public class StartOverlay : MonoBehaviour
 {
-    [SerializeField] private MainHUD mainHUD;
-    [SerializeField] private GameMode gameMode;
+    public delegate ScoreData ScoreLoadHandler();
+    public event ScoreLoadHandler OnLoadingScoreData;
+    [SerializeField] private MainHUD _mainHUD;
     [Header("Start UiOverlay Elements")]
-    [SerializeField] private TextMeshProUGUI highestScoreText;
-    [SerializeField] private TextMeshProUGUI lastScoreText;
-    [SerializeField] private TextMeshProUGUI cherryTotalText;
-    [SerializeField] private GameObject btnQuit; 
-    [SerializeField] private GameObject tutorialText; 
-    private void Awake()
-    {
-        mainHUD = mainHUD != null ? mainHUD : GetComponentInParent<MainHUD>();
-        gameMode = gameMode != null ? gameMode : mainHUD.GameMode;
-#if UNITY_WEBGL && !UNITY_EDITOR
-        btnQuit.SetActive(false);
-#endif
-#if UNITY_IOS || UNITY_ANDROID //mobile check
-        tutorialText.SetActive(false);
-#endif
-    }
-    private void OnEnable()
-    {
-        GetLoadedScoresTexts(gameMode);
-    }
+    [SerializeField] private TextMeshProUGUI _highestScoreText, _lastScoreText, _totalPicUpsText;
+    [SerializeField] private GameObject _btnQuit, _tutorialObject;
+    private ScoreData currentScoreData = new ScoreData();
+
     public void BtnRun()
     {
-        mainHUD.BtnMainHudSound();
-        mainHUD.OpenMenu(Menu.MAIN, gameObject);
+        _mainHUD.BtnMainHudSound();
+        _mainHUD.OpenMenu(Menu.MAIN, gameObject);
     }
     public void BtnSettings()
     {
-        mainHUD.BtnMainHudSound();
-        mainHUD.OpenMenu(Menu.SETTINGS, gameObject);
+        _mainHUD.BtnMainHudSound();
+        _mainHUD.OpenMenu(Menu.SETTINGS, gameObject);
     }
-    private void GetLoadedScoresTexts(GameMode gameMode)
+    private void Awake()
     {
-        highestScoreText.text = $"Highest Score! \n{gameMode.GetLoadedData().highestScore}";
-        lastScoreText.text = $"Last Score! \n{gameMode.GetLoadedData().lastScore}";
-        cherryTotalText.text = $"{gameMode.GetLoadedData().totalCherry}";
+        _Initialize();
+    }
+    private void OnEnable()
+    {
+        _GetScoreDataTexts();
+    }
+    private void _Initialize()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        btnQuit.SetActive(false);
+#endif
+#if UNITY_IOS || UNITY_ANDROID
+        _tutorialObject.SetActive(false);
+#endif  
+    }
+    public void _GetScoreDataTexts()
+    {
+        currentScoreData = OnLoadingScoreData?.Invoke();
+        _highestScoreText.text = $"Highest Score! \n{currentScoreData.highestScore}";
+        _lastScoreText.text = $"Last Score! \n{currentScoreData.lastScore}";
+        _totalPicUpsText.text = $"{currentScoreData.totalPicUps}";
     }
 }

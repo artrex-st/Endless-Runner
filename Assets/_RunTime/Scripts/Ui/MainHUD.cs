@@ -1,110 +1,71 @@
 using TMPro;
 using UnityEngine;
-
-public class MainHUD : MonoBehaviour
+public class OverlayStatus
 {
-    [SerializeField] private GameMode gameMode;
-    [SerializeField] private MusicController musicController;
-    [SerializeField] private MainHudSound mainHudSound;
-    public GameMode GameMode => gameMode;
+    public int picUpsCount = 0;
+    public float score = 0, distanceCount = 0, timerToStartRun = 0;
+}
+public class MainHUD : MonoBehaviour
+{public delegate void MainMenuEventHandler();
+    public event MainMenuEventHandler OnPauseGame, OnResumeGame, OnClickedQuitGame;
+    
+    [SerializeField] private MusicController _musicController;
+    [SerializeField] private MainHudSound _mainHudSound;
     [Header("Overlays")]
-    [SerializeField] private GameObject mainUiOverlay;
-    [SerializeField] private GameObject pauseUiOverlay;
-    [SerializeField] private GameObject startUiOverlay;
-    [SerializeField] private GameObject settingsOverlay;
+    [SerializeField] private GameObject _mainUiOverlay, _pauseUiOverlay, _startUiOverlay, _settingsOverlay;
     public bool IsInitialised {get; private set;}
     private GameObject lastMenu;
-    [SerializeField] private TextMeshProUGUI buildVersionText;
-    //Overlays
-    private void Awake()
-    {
-        Init();
-        OpenMenu(Menu.START);
-        buildVersionText.text = $"Version: {Application.version} \n In development!";
-    }
-    public void QuitGame()
-    {
-        gameMode.QuitGame();
-    }
-    public void Init()
-    {
-        //TODO: talvez usar Utils
-        mainUiOverlay = mainUiOverlay != null ? mainUiOverlay : transform.Find("Main Overlay").gameObject;
-        pauseUiOverlay = pauseUiOverlay != null ? pauseUiOverlay : transform.Find("Pause Overlay").gameObject;
-        startUiOverlay = startUiOverlay != null ? startUiOverlay : transform.Find("Start Overlay").gameObject;
-        settingsOverlay = settingsOverlay != null ? settingsOverlay : transform.Find("Settings Overlay").gameObject;
 
-        IsInitialised = true;
+    public void ButtonQuitGame()
+    {
+        OnClickedQuitGame?.Invoke();
     }
-    public void OpenMenu(Menu _Menu, GameObject _CallingMenu)
+    public void BtnMainHudSound()
+    {
+        _mainHudSound.PlayButtonPressSound();
+    }
+    public void OpenMenu(Menu menuOpened, GameObject callingMenu)
     {
         if (!IsInitialised)
         {
-            Init();
+            _Initialize();
         }
-        switch (_Menu)
+        switch (menuOpened)
         {
             case Menu.MAIN:
-                mainUiOverlay.SetActive(true);
-                if (_CallingMenu == startUiOverlay)
-                {
-                    musicController.PlayMainTrackMusic();
-                }
+                OnResumeGame?.Invoke();
+                _mainUiOverlay.SetActive(true);
                 break;
             case Menu.PAUSE:
-                pauseUiOverlay.SetActive(true);
+                OnPauseGame?.Invoke();
+                _pauseUiOverlay.SetActive(true);
                 break;
             case Menu.START:
-                startUiOverlay.SetActive(true);
+                OnResumeGame?.Invoke();
+                _startUiOverlay.SetActive(true);
                 break;
             case Menu.SETTINGS:
-                settingsOverlay.SetActive(true);
+                _settingsOverlay.SetActive(true);
                 break;
             case Menu.CLOSE:
                 lastMenu.SetActive(true);
                 break;
             default:
-                //CloseAllMenus();
                 break;
         }
-        lastMenu = _CallingMenu;
-        _CallingMenu.SetActive(false);
+        lastMenu = callingMenu;
+        callingMenu.SetActive(false);
     }
-    public void OpenMenu(Menu _Menu)
+    
+    private void Awake()
     {
-        if (!IsInitialised)
-        {
-            Init();
-        }
-        switch (_Menu)
-        {
-            case Menu.MAIN:
-                mainUiOverlay.SetActive(true);
-                break;
-            case Menu.PAUSE:
-                pauseUiOverlay.SetActive(true);
-                break;
-            case Menu.START:
-                startUiOverlay.SetActive(true);
-                break;
-            case Menu.SETTINGS:
-                settingsOverlay.SetActive(true);
-                break;
-            default:
-                //CloseAllMenus();
-                break;
-        }
-        musicController.PlayStartMenuMusic();
+        _Initialize();
     }
-    private void CloseAllMenus()
+    private void _Initialize()
     {
-        foreach(GameObject _MenuChild in transform)
-        {
-            _MenuChild.SetActive(false);
-        } 
-    }
-    public void BtnMainHudSound()
-    {
-        mainHudSound.PlayButtonPressSound();
+        IsInitialised = true;
+        _startUiOverlay.SetActive(true);
+        _musicController.PlayStartMenuMusic();
+        
     }
 }

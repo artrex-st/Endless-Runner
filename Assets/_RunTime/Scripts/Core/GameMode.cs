@@ -5,125 +5,149 @@ using UnityEngine.SceneManagement;
 
 public class GameMode : MonoBehaviour
 {
-    [SerializeField] private Camera mainCamera;
+    public delegate ScoreData ScoreLoadHandler();
+    public event ScoreLoadHandler OnLoadingScoreData;
+    public delegate void ScoreSaveHandler(ScoreData scoreData);
+    public event ScoreSaveHandler OnSavedScoreData;
+    public delegate IEnumerator PlayerAnimationHandler();
+    public event PlayerAnimationHandler OnStartedGameAnimation;
 
+    public int Score => Mathf.RoundToInt(_score);
+    public int DistanceCount => Mathf.RoundToInt(_distanceCount);
+    public int PicUpsCount => _picUpsCount;
     [SerializeField] private PlayerController _player;
-    [SerializeField] private PlayerAnimationController playerAnimationController;
-    [SerializeField] private MusicController musicController;
-    [SerializeField] private SaveGame saveGame;
-    [Header("Multipliers")]
-    [SerializeField] private float initialSpeed;
-    [SerializeField] private float maxSpeed;
-    [SerializeField] private float timeToMaxSpeed;
-    [SerializeField] private float baseScoreMultiplier = 1;
-    [Header("Scores")]
-    private int cherryPicUpCount;
-    private float score;
-    private float distanceCount;
-    public int Score => Mathf.RoundToInt(score);
-    public int DistanceCount => Mathf.RoundToInt(distanceCount);
-    public int CherryPicUpCount => cherryPicUpCount;
-    [SerializeField, Range(0,5f)] float timerToStart;
-    public float TimerToStart => timerToStart;
-    private bool isDead = false;
-    public bool IsDead => isDead;
-    [SerializeField, Range(0,10f)] private float multiplySpeed;
-    //Game Mode End
-    [SerializeField] private float reloadGameDelay = 3;
-    private float startTime;
+    [SerializeField] private MusicController _musicController;
+    [SerializeField, Header("Game Configurations")] private GameModeConfig _gameModeConfig;
+    private int _picUpsCount;
+    private float _score, _distanceCount, _startTime;
+    private bool _isDead = false;
+    private ScoreData _currentScore = new ScoreData();
 
-    private void Awake()
-    {
-        _player.enabled = false;
-        saveGame.LoadGame();
-        GameStateManager.Instance.OnGameStateChanged += OnGameStateChanged;
-    }
-    private void OnDestroy()
-    {
-        GameStateManager.Instance.OnGameStateChanged -= OnGameStateChanged;
-    }
-    private void Update()
-    {
-        if (CanPlay())
-        {
-            DistanceCalc();
-            SpeedLevelCalc();
-        }
-        else
-        {
-            if(!_player.isActiveAndEnabled)
-                _player.enabled = playerAnimationController.EndStartAnimation();
-            startTime = Time.time;
-        }
-    }
-    private bool CanPlay()
-    {
-        return _player.isActiveAndEnabled && !isDead;
-    }
-    private void SpeedLevelCalc()
-    {
-        float _percent = (Time.time - startTime) / timeToMaxSpeed;
-        _player.ForwardSpeed = Mathf.Lerp(initialSpeed, maxSpeed, _percent);
-        ScoreCalc(_percent);
-    }
-    public void OnGameOver()
-    {
-        isDead = true;
-        musicController.PlayDeathTrackMusic();
-        if (saveGame.CurrentSave.highestScore < Score)
-            saveGame.CurrentSave.highestScore = Score;
-        saveGame.CurrentSave.totalCherry += CherryPicUpCount;
-        saveGame.CurrentSave.lastScore = Score;
-        saveGame.SavePlayerData(saveGame.CurrentSave);//save
-        StartCoroutine(ReloadGameCoroutine());
-    }
-    private void ScoreCalc(float _Multiply)
-    {
-        float _extraScore = 1 + _Multiply;
-        score += baseScoreMultiplier * _player.ForwardSpeed * Time.deltaTime * _extraScore;
-    }
-    private void DistanceCalc()
-    {
-        distanceCount += _player.ForwardSpeed * Time.deltaTime;
-    }
-    private void OnGameStateChanged(GameStates newGameState)
-    {
-        if (newGameState.Equals(GameStates.GAME_RUNNING))
-        {
-            Time.timeScale = 1f;
-        }
-        else
-        {
-            Time.timeScale = 0f;
-        }
-    }
-    public void StartGame()
-    {
-        playerAnimationController.SetStartTriggerAnimation();
-        isDead = false;
-    }
-    private IEnumerator ReloadGameCoroutine()
-    {
-        yield return new WaitForSeconds(reloadGameDelay);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
     public void AddPickUp()
     {
-        cherryPicUpCount++;
+        _picUpsCount++;
     }
-    public void QuitGame()
+    public void OnClickedQuitGame()
     {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #elif UNITY_WEBGL
-        Debug.Log("WebGL Player");
+        Debug.Log("'WebGL Player' cannot be closed");
 #else
         Application.Quit();
 #endif
-        
     }
-    public SaveGameData GetLoadedData()
+    public void OnGameOver()
     {
-        return saveGame.CurrentSave;
+        _isDead = true;
+        _musicController.PlayDeathTrackMusic();
+        
+        _currentScore = OnLoadingScoreData?.Invoke();
+        OnSavedScoreData?.Invoke(new ScoreData
+        {
+            highestScore = Score > _currentScore.highestScore ? Score : _currentScore.highestScore,
+            lastScore = Score,
+            totalPicUps = _currentScore.totalPicUps + PicUpsCount
+        });
+
+        StartCoroutine(_ReloadGameCoroutine());
+    }
+    public void OnPauseGame()
+    {
+        Time.timeScale = 0f;
+    }
+    public void OnResumeGame()
+    {
+        Time.timeScale = 1f;
+    }
+    public void OnStartedRun()
+    {
+        StartCoroutine(StartGameCoroutine());
+    }
+    public OverlayStatus OnOverlayStatusCalled()
+    {
+        OverlayStatus overlayStatus = new OverlayStatus
+        {
+            timerToStartRun = _gameModeConfig.timerToStartRun,
+            score = Score,
+            distanceCount = DistanceCount,
+            picUpsCount = PicUpsCount
+        };
+
+        return overlayStatus;
+    }
+    public void OnColision(Collider other)
+    {
+        if (other.TryGetComponent(out Obstacle obstacle))
+        {
+            OnGameOver();
+            _player.Die();
+            obstacle.PlayCollisionFeedBack(other);
+        }
+
+        if (other.TryGetComponent(out IPicUps picUp))
+        {
+            AddPickUp();
+            picUp.OnPic();
+        }
+    }
+    
+    private void Awake()
+    {
+        _Initialize();
+    }
+    private void Update()
+    {
+        if (_CanPlay())
+        {
+            _SpeedLevelCalc();
+        }
+    }
+    private void _Initialize()
+    {
+        _player.enabled = false;
+    }
+    private bool _CanPlay()
+    {
+        return _player.enabled && !_isDead;
+    }
+
+    private void _SpeedLevelCalc()
+    {
+        float percent = (Time.time - _startTime) / _gameModeConfig.timeToMaximumSpeed;
+        _player.ForwardSpeed = Mathf.Lerp(_gameModeConfig.initialSpeed, _gameModeConfig.maximumSpeed, percent);
+        _distanceCount = _player.transform.position.z;
+        
+        _ScoreCalc(percent);
+    }
+    private void _ScoreCalc(float _Multiply)
+    {
+        float _extraScore = _gameModeConfig.scoreByDistanceValue + _Multiply;
+        _score += _gameModeConfig.baseScoreMultiplier * _player.ForwardSpeed * Time.deltaTime * _extraScore;
+    }
+    private IEnumerator _ReloadGameCoroutine()
+    {
+        yield return new WaitForSeconds(_gameModeConfig.reloadGameDelay);
+
+#if UNITY_EDITOR
+        if (GameManager.instance == null)
+        {
+            Debug.LogWarning($"To reload the game there must be a GameManager instance of the Scene index:{(int)SceneIndexes.MANAGER}");
+        }
+        else
+        {
+            GameManager.instance.ReloadScene((int)SceneIndexes.MAIN_GAME_SCREEN);
+        }
+#else 
+        GameManager.instance.ReloadScene((int)SceneIndexes.MAIN_GAME_SCREEN);
+#endif
+    }
+    private IEnumerator StartGameCoroutine()
+    {
+        yield return StartCoroutine(OnStartedGameAnimation?.Invoke());
+        _musicController.PlayMainTrackMusic();
+        _isDead = false;
+        _player.enabled = true;
+        _startTime = Time.time;
     }
 }

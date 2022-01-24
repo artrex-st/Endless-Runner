@@ -2,59 +2,82 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SettingOverlay : MonoBehaviour
+public sealed class SettingOverlay : MonoBehaviour
 {
-    [SerializeField] private MainHUD mainHUD;
-    [SerializeField] private SaveGame saveGame;
-    [SerializeField] private AudioController audioController;
+    public delegate void DeletedDataHandler();
+    public event DeletedDataHandler OnDeletedData;
+    [SerializeField] private MainHUD _mainHUD;
+    [SerializeField] private AudioController _audioController;
     [Header("Settings UiOverlay Elements")]
-    [SerializeField] private Slider sliderMaster;
-    [SerializeField] private Slider sliderMusic;
-    [SerializeField] private Slider sliderSFX;
-    [SerializeField] private Button btnDeleteData;
+    [SerializeField] private Slider _sliderMaster, _sliderMusic, _sliderSFX;
+    
+    [Header("Delete Button")]
+    [SerializeField] private Button _btnDeleteData;
+    [SerializeField] private TextMeshProUGUI _btnTextLabel;
+    [SerializeField] private string _textBeforeDelete = "Delete Data?", _textAfterDelete = "Deleted!";
 
-    private void Awake()
+    public SettingOverlay(MainHUD mainHUD, AudioController audioController, Slider sliderMaster, Slider sliderMusic, Slider sliderSFX, Button btnDeleteData, TextMeshProUGUI btnTextLabel, string textBeforeDelete, string textAfterDelete)
     {
-        mainHUD = mainHUD != null ? mainHUD : GetComponentInParent<MainHUD>();
+        _mainHUD = mainHUD;
+        _audioController = audioController;
+        _sliderMaster = sliderMaster;
+        _sliderMusic = sliderMusic;
+        _sliderSFX = sliderSFX;
+        _btnDeleteData = btnDeleteData;
+        _btnTextLabel = btnTextLabel;
+        _textBeforeDelete = textBeforeDelete;
+        _textAfterDelete = textAfterDelete;
+         _InitializeOnEnable();
     }
-    private void OnEnable()
-    {
-        UpdateUi();
-        btnDeleteData.interactable = true;
-    }
-    private void OnDisable()
-    {
-        audioController.SaveAudioSettings();
-    }
-    //call backs
+
     public void OnMasterVolumeChange(float value)
     {
-        audioController.MasterVolume = value;
+        _audioController.MasterVolume = value;
     }
     public void OnMusicVolumeChange(float value)
     {
-        audioController.MusicVolume = value;
+        _audioController.MusicVolume = value;
     }
     public void OnSFXVolumeChange(float value)
     {
-        audioController.SfxVolume = value;
+        _audioController.SfxVolume = value;
     }
-    //
     public void BtnDeleteData()
     {
-        mainHUD.BtnMainHudSound();
-        btnDeleteData.interactable = false;
-        saveGame.DeleteData();
+        _mainHUD.BtnMainHudSound();
+        _btnDeleteData.interactable = false;
+        _btnTextLabel.text = _textAfterDelete;
+        OnDeletedData?.Invoke();
     }
     public void BtnCloseSettings()
     {
-        mainHUD.BtnMainHudSound();
-        mainHUD.OpenMenu(Menu.CLOSE, gameObject);
+        _mainHUD.BtnMainHudSound();
+        _mainHUD.OpenMenu(Menu.CLOSE, gameObject);
     }
-    private void UpdateUi()
+    private void OnEnable()
     {
-        sliderMaster.value = audioController.MasterVolume;
-        sliderMusic.value = audioController.MusicVolume;
-        sliderSFX.value = audioController.SfxVolume;
+        _InitializeOnEnable();
+    }
+    private void OnDisable()
+    {
+        _SaveSettingsOnDisable();
+    }
+    private void _SaveSettingsOnDisable()
+    {
+        _audioController.SaveAudioSettings();
+    }
+
+    private void _InitializeOnEnable()
+    {
+        _UpdateUi();
+        _btnDeleteData.interactable = true;
+        _btnTextLabel.text = _textBeforeDelete;
+    }
+
+    private void _UpdateUi()
+    {
+        _sliderMaster.value = _audioController.MasterVolume;
+        _sliderMusic.value = _audioController.MusicVolume;
+        _sliderSFX.value = _audioController.SfxVolume;
     }
 }

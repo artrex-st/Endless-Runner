@@ -3,65 +3,70 @@ using UnityEngine.Audio;
 
 public class AudioController : MonoBehaviour
 {
-    [SerializeField] private SaveGame gameSaver;
-    [SerializeField] private AudioMixer mixerAudio;
-    //constants
-    private const string masterVolume = "Master";
-    private const string musicVolume = "Music";
-    private const string sfxVolume = "SFX";
-    //volume range
-    private const int minVolumeDb = -60;
-    private const int maxVolumeDb = 0;
-    private void Start()
+    public delegate void AudioSaveHandler(SettingsData settingsData);
+    public event AudioSaveHandler OnSavedSettingsData;
+    public delegate SettingsData AudioLoadHandler();
+    public event AudioLoadHandler OnLoadingSettingsData;
+
+    [SerializeField] private AudioMixer _mixerAudio;
+    private const string _masterVolume = "Master", _musicVolume = "Music", _sfxVolume = "SFX";
+    private const float _minimumVolumeDb = -50, _maximumVolumeDb = 0, _defaultSliderDbValue = 0.85f, _mutedDbValue = -80f;
+
+    public AudioController(AudioMixer mixerAudio)
     {
-        LoadAudioSettings();
+        _mixerAudio = mixerAudio;
+        _LoadAudioSettings();
     }
-    //
+
     public float MasterVolume
     {
-        get => GetMixerVolumeParameter(masterVolume);
-        set => SetMixerVolumeParameter(masterVolume, value);
+        get => _GetMixerVolumeParameter(_masterVolume);
+        set => _SetMixerVolumeParameter(_masterVolume, value);
     }
     public float MusicVolume
     {
-        get => GetMixerVolumeParameter(musicVolume);
-        set => SetMixerVolumeParameter(musicVolume, value);
+        get => _GetMixerVolumeParameter(_musicVolume);
+        set => _SetMixerVolumeParameter(_musicVolume, value);
     }
     public float SfxVolume
     {
-        get => GetMixerVolumeParameter(sfxVolume);
-        set => SetMixerVolumeParameter(sfxVolume, value);
+        get => _GetMixerVolumeParameter(_sfxVolume);
+        set => _SetMixerVolumeParameter(_sfxVolume, value);
     }
-    //
-    private void SetMixerVolumeParameter(string key, float volumePercent)
-    {
-        float volume = Mathf.Lerp(minVolumeDb,maxVolumeDb, volumePercent);
-        mixerAudio.SetFloat(key, volume);
-    }
-    private float GetMixerVolumeParameter(string key)
-    {
-        if (mixerAudio.GetFloat(key, out var value))
-        {
-            return Mathf.InverseLerp(minVolumeDb,maxVolumeDb,value);
-        }
-        return 0.85f;
-    }
-    // Save settings
     public void SaveAudioSettings()
     {
-        gameSaver.SaveSettings(new AudioSettingsData
+        OnSavedSettingsData?.Invoke(new SettingsData
         {
             masterVolume = MasterVolume,
             musicVolume = MusicVolume,
             sfxVolume = SfxVolume,
         });
     }
-    // Load Settings
-    private void LoadAudioSettings()
+
+    private void Start()
     {
-        gameSaver.LoadGame();
-        MasterVolume = gameSaver.AudioSettingsData.masterVolume;
-        MusicVolume = gameSaver.AudioSettingsData.musicVolume;
-        SfxVolume = gameSaver.AudioSettingsData.sfxVolume;
+        _LoadAudioSettings();
+    }
+    private void _SetMixerVolumeParameter(string key, float volumePercent)
+    {
+        float volume = Mathf.Lerp(_minimumVolumeDb, _maximumVolumeDb, volumePercent);
+        volume = volume <= _minimumVolumeDb ? _mutedDbValue : volume;
+        _mixerAudio.SetFloat(key, volume);
+    }
+    private float _GetMixerVolumeParameter(string key)
+    {
+        if (_mixerAudio.GetFloat(key, out var value))
+        {
+            return Mathf.InverseLerp(_minimumVolumeDb,_maximumVolumeDb,value);
+        }
+        return _defaultSliderDbValue;
+    }
+    private void _LoadAudioSettings()
+    {
+        SettingsData currentSettingsLoaded = new SettingsData();
+        currentSettingsLoaded = OnLoadingSettingsData?.Invoke();
+        MasterVolume = currentSettingsLoaded.masterVolume;
+        MusicVolume = currentSettingsLoaded.musicVolume;
+        SfxVolume = currentSettingsLoaded.sfxVolume;
     }
 }

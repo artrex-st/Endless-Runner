@@ -1,75 +1,94 @@
 using UnityEngine;
 
-public class SaveGameData
+public class ScoreData
 {
-    public int highestScore;
-    public int lastScore;
-    public int totalCherry;
+    public int totalPicUps;
+    public float highestScore, lastScore;
 }
-public class AudioSettingsData
+public class SettingsData
 {
-    public float masterVolume;
-    public float musicVolume;
-    public float sfxVolume;
+    public float masterVolume = 0.5f, musicVolume = 0.5f, sfxVolume = 0.5f;
 }
-public class SaveGame : MonoBehaviour
+
+public sealed class SaveGame : MonoBehaviour
 {
-    public const string keyScore = "Score";
-    public const string keyLastScore = "LastScore";
-    public const string keyMaxCherry = "MaxCherry";
-    public const string keyMasterVolume = "masterVolume";
-    public const string keyMusicVolume = "musicVolume";
-    public const string keyEfxVolume = "sfxVolume";
-    // variaveis
-    public SaveGameData CurrentSave {get; private set;}
-    public AudioSettingsData AudioSettingsData {get; private set;}
-    private bool IsLoaded => CurrentSave != null && AudioSettingsData != null;
-    private void Awake()
+    public const string keyScore = "Score", 
+                        keyLastScore = "LastScore", 
+                        keyMaxCherry = "MaxCherry", 
+                        keyMasterVolume = "masterVolume", 
+                        keyMusicVolume = "musicVolume", 
+                        keyEfxVolume = "sfxVolume",
+                        scoreDataFileName = "SaveScore",
+                        settingsDataFileName = "SaveSettings";
+    public ScoreData CurrentScoreData {get; private set;}
+    public SettingsData CurrentSettingsData {get; private set;}
+    private bool IsLoaded => CurrentScoreData != null && CurrentSettingsData != null;
+    public void OnSavedScoreData(ScoreData scoreData)
     {
-        LoadGame();
+        CurrentScoreData = scoreData;
+        string jsonString = JsonUtility.ToJson(CurrentScoreData);
+        SaveSystem.Save(jsonString,scoreDataFileName);
     }
-    //save
-    public void SavePlayerData(SaveGameData saveData)
+    public void OnSavedSettingsData(SettingsData settingsData)
     {
-        CurrentSave = saveData;
-        PlayerPrefs.SetInt(keyScore, saveData.highestScore);
-        PlayerPrefs.SetInt(keyLastScore, saveData.lastScore);
-        PlayerPrefs.SetInt(keyMaxCherry, saveData.totalCherry);
-        PlayerPrefs.Save();
+        CurrentSettingsData = settingsData;
+        string jsonString = JsonUtility.ToJson(CurrentSettingsData);
+        SaveSystem.Save(jsonString,settingsDataFileName);
     }
-    public void SaveSettings(AudioSettingsData saveAudioSettings)
-    {
-        AudioSettingsData = saveAudioSettings;
-        PlayerPrefs.SetFloat(keyMasterVolume,AudioSettingsData.masterVolume);
-        PlayerPrefs.SetFloat(keyMusicVolume,AudioSettingsData.musicVolume);
-        PlayerPrefs.SetFloat(keyEfxVolume,AudioSettingsData.sfxVolume);
-        PlayerPrefs.Save();
-    }
-    //load
     public void LoadGame()
     {
         if (IsLoaded)
         {
             return;
         }
-        CurrentSave = new SaveGameData
-        {
-            highestScore = PlayerPrefs.GetInt(keyScore, 0),
-            totalCherry = PlayerPrefs.GetInt(keyMaxCherry, 0),
-            lastScore = PlayerPrefs.GetInt(keyLastScore, 0)
-        };
-        AudioSettingsData = new AudioSettingsData
-        {
-            masterVolume = PlayerPrefs.GetFloat(keyMasterVolume, 1),
-            musicVolume = PlayerPrefs.GetFloat(keyMusicVolume, 1),
-            sfxVolume = PlayerPrefs.GetFloat(keyEfxVolume, 1)
-        };
+        _LoadScore();
+        _LoadSetting();
     }
-    // DELETE ALL
-    public void DeleteData()
+    public void OnDeletedData()
     {
-        SavePlayerData(new SaveGameData());
-        PlayerPrefs.DeleteAll();
+        OnSavedScoreData(new ScoreData());
         LoadGame();
-    }  
+    }
+    public ScoreData OnLoadingScoreData()
+    {
+        return CurrentScoreData;
+    }
+    public SettingsData OnLoadingSettingsData()
+    {
+        return CurrentSettingsData;
+    }
+    private void Awake()
+    {
+        _Initialize();
+    }
+    private void _Initialize()
+    {
+        LoadGame();
+    }
+    private void _LoadScore()
+    {
+        string jsonString = SaveSystem.Load(scoreDataFileName);
+        
+        if (jsonString != null)
+        {
+            CurrentScoreData = JsonUtility.FromJson<ScoreData>(jsonString);
+        }
+        else
+        {
+            OnSavedScoreData(new ScoreData());
+        }
+    }
+    private void _LoadSetting()
+    {
+        string jsonString = SaveSystem.Load(settingsDataFileName);
+        
+        if (jsonString != null)
+        {
+            CurrentSettingsData = JsonUtility.FromJson<SettingsData>(jsonString);
+        }
+        else
+        {
+            CurrentSettingsData = new SettingsData();
+        }
+    }
 }

@@ -1,31 +1,35 @@
 using UnityEngine;
 
-public class PauseOverlay : MonoBehaviour
+public sealed class PauseOverlay : MonoBehaviour
 {
-    private MainHUD mainHUD;
-    private GameMode gameMode;
-    [SerializeField] private GameObject btnQuit;
-    private void Awake()
+    [SerializeField] private MainHUD _mainHUD;
+    [SerializeField] private GameObject _btnQuit;
+
+    public PauseOverlay(MainHUD mainHUD, GameObject btnQuit)
     {
-        mainHUD = mainHUD != null ? mainHUD : GetComponentInParent<MainHUD>();
-        gameMode = gameMode != null ? gameMode : mainHUD.GameMode;
-#if UNITY_WEBGL  && !UNITY_EDITOR
-        btnQuit.SetActive(false);
-#endif
+        _mainHUD = mainHUD;
+        _btnQuit = btnQuit;
+        _Initialize();
     }
+
     public void BtnResume()
     {
-        mainHUD.BtnMainHudSound();
-        mainHUD.OpenMenu(Menu.MAIN, gameObject);
-        //gameMode.ResumeGame();
+        _mainHUD.BtnMainHudSound();
+        _mainHUD.OpenMenu(Menu.MAIN, gameObject);
     }
     public void BtnSettings()
     {
-        mainHUD.BtnMainHudSound();
-        mainHUD.OpenMenu(Menu.SETTINGS, gameObject);
+        _mainHUD.BtnMainHudSound();
+        _mainHUD.OpenMenu(Menu.SETTINGS, gameObject);
     }
-    private void OnEnable()
+    private void Awake()
     {
-        GameStateManager.Instance.SetState(GameStates.GAME_PAUSED);
+        _Initialize();
+    }
+    private void _Initialize()
+    {
+#if UNITY_WEBGL  && !UNITY_EDITOR
+        btnQuit.SetActive(false);
+#endif  
     }
 }

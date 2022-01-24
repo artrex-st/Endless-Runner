@@ -1,34 +1,48 @@
 using System.Collections;
-using System.Collections.Generic;
-using JetBrains.Annotations;
 using UnityEngine;
 
 [RequireComponent(typeof(PlayerController))]
-public class PlayerAnimationController : MonoBehaviour
+public sealed class PlayerAnimationController : MonoBehaviour
 {
-    [SerializeField] private Animator animator;
-    public Animator PlayerAnimator => animator == null ? animator = GetComponent<Animator>() : animator;
-    private PlayerController player;
+    [SerializeField] private Animator _animator;
 
-    private void Awake()
+    public PlayerAnimationController(Animator animator)
     {
-        player = GetComponent<PlayerController>();
+        _animator = animator;
     }
-    private void Update()
+
+    public void OnStartedTriggerAnimation(string animationString)
     {
-        animator.SetBool(PlayerAnimationConstants.IsJumping, player.IsJumping);
-        animator.SetBool(PlayerAnimationConstants.IsRolling, player.IsRolling);
+        _animator.SetTrigger(animationString);
     }
-    public void Die()
+    public void OnStartedBoolAnimation(string animationString, bool isStarted)
     {
-        animator.SetTrigger(PlayerAnimationConstants.DieTrigger);
+        _animator.SetBool(animationString, isStarted);
     }
-    public void SetStartTriggerAnimation()
+    public IEnumerator OnStartedGameAnimation()
     {
-        animator.SetTrigger(PlayerAnimationConstants.StartGameTrigger);
+        _animator.SetTrigger(PlayerAnimationConstants.StartGameTrigger);
+       
+        while (!_animator.GetCurrentAnimatorStateInfo(0).IsName(PlayerAnimationConstants.StartRun))
+        {
+            yield return null;
+        }
+        
+        while (_animator.GetCurrentAnimatorStateInfo(0).IsName(PlayerAnimationConstants.StartRun)
+            && _animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f)
+        {
+            yield return null;
+        }
     }
-    public bool EndStartAnimation()
-    {
-        return animator.GetCurrentAnimatorStateInfo(0).IsName(PlayerAnimationConstants.StartRun) && animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 1;
-    }
+    // public void OnAnimationModifier() //TODO: Remove Jump and Roll animations scripts
+    // {
+    //     AnimatorClipInfo[] clips = _animator.GetNextAnimatorClipInfo(0);
+    //     PlayerController player = _animator.transform.parent.GetComponent<PlayerController>();
+    //     if (player != null && clips.Length > 0)
+    //     {
+    //         AnimatorClipInfo clipInfo = clips[0];
+    //         float multiplier = clipInfo.clip.length / player.RollDuration;
+    //         _animator.SetFloat(PlayerAnimationConstants.RollSpeedMultiplier, multiplier);
+    //     }
+    // }
 }
